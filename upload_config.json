@@ -1,0 +1,30 @@
+{
+  "privacy": "private",
+  "min_score": 0.9,
+  "max_per_day": 6,
+  "every_minutes": 90,
+  "clip_dirs": [
+    "output",
+    "live_output"
+  ],
+  "titles": [
+    "{streamer} went CRAZY in GTA 6 😱",
+    "{streamer} can't believe this happened in GTA 6 🤯",
+    "This GTA 6 moment broke {streamer} 😂",
+    "{streamer}'s wildest GTA 6 reaction 🔥",
+    "{streamer} vs GTA 6 chaos 💀"
+  ],
+  "description": "{streamer} live on GTA 6 🔥\n\nFull stream: {source}\nAll credit to {streamer} {channel_url}\n\n#shorts #gta6 #gtavi",
+  "tags": [
+    "gta 6",
+    "gta vi",
+    "gta 6 gameplay",
+    "shorts",
+    "gaming"
+  ],
+  "streamers": {},
+  "_help": {
+    "streamers": "optional overrides keyed by folder or video id, e.g. {\"hwSg39yIBGU\": {\"name\": \"IShowSpeed\", \"channel_url\": \"https://youtube.com/@IShowSpeed\"}}. Otherwise the channel name is looked up from the clip's source URL.",
+    "privacy": "private | unlisted | public (unaudited API projects are forced to private by YouTube)"
+  }
+}

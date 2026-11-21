@@ -1,0 +1,10 @@
+faster-whisper
+numpy
+yt-dlp[default]
+imageio-ffmpeg
+streamlink
+opencv-python-headless
+pillow
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2

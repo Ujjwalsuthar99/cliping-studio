@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clipping Studio</title>
+<style>
+  :root { --bg:#f6f6f4; --card:#fff; --ink:#1d1d1f; --mute:#6b6b70; --line:#e4e4e1;
+          --acc:#f2c200; --red:#e5322d; --green:#1f9d55; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+         background:var(--bg); color:var(--ink); display:flex; min-height:100vh; }
+  nav { width:210px; background:#fff; border-right:1px solid var(--line); padding:18px 12px; }
+  nav h1 { font-size:16px; margin:0 8px 18px; display:flex; gap:8px; align-items:center; }
+  nav h1 span { background:var(--acc); border-radius:6px; padding:2px 7px; }
+  nav button { display:block; width:100%; text-align:left; border:0; background:none;
+               padding:9px 10px; border-radius:8px; font-size:14px; cursor:pointer; color:var(--ink); }
+  nav button.on { background:#fff6cc; font-weight:600; }
+  nav .yt { margin:20px 8px 0; font-size:12px; color:var(--mute); }
+  main { flex:1; padding:24px 30px; max-width:1200px; }
+  h2 { margin:0 0 16px; font-size:20px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px;
+          padding:18px; margin-bottom:16px; }
+  .card h3 { margin:0 0 12px; font-size:15px; }
+  label { display:block; font-size:12px; color:var(--mute); margin:10px 0 4px; }
+  input, select, textarea { width:100%; padding:8px 10px; border:1px solid var(--line);
+          border-radius:8px; font:inherit; background:#fff; }
+  .row { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; }
+  .check { display:flex; align-items:center; gap:8px; margin-top:12px; color:var(--ink); font-size:14px; }
+  .check input { width:auto; }
+  .btn { border:0; border-radius:8px; padding:9px 16px; font:inherit; font-weight:600;
+         cursor:pointer; background:var(--acc); color:#000; }
+  .btn.sec { background:#efefec; } .btn.red { background:var(--red); color:#fff; }
+  .btn.sm { padding:5px 10px; font-size:12px; }
+  .btn:disabled { opacity:.5; cursor:default; }
+  .list .item { display:flex; gap:10px; align-items:center; margin-top:6px; }
+  .tag { display:inline-block; font-size:11px; padding:2px 8px; border-radius:20px; background:#efefec; }
+  .tag.running { background:#fde7e6; color:var(--red); }
+  .tag.finished { background:#e3f5ea; color:var(--green); }
+  .tag.public { background:#e3f5ea; color:var(--green); }
+  .jobs .job { border-top:1px solid var(--line); padding:12px 0; }
+  .jobs .job:first-child { border-top:0; }
+  .job .t { font-weight:600; word-break:break-all; }
+  .job .meta { color:var(--mute); font-size:12px; margin:2px 0 6px; }
+  pre.log { background:#111; color:#ddd; padding:10px; border-radius:8px; max-height:340px;
+            overflow:auto; font-size:12px; white-space:pre-wrap; margin:8px 0 0; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
+  .clip { background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .clip video { width:100%; aspect-ratio:9/16; background:#000; display:block; }
+  .clip .b { padding:10px; font-size:12px; }
+  .clip .s { font-size:18px; font-weight:700; }
+  .clip .acts { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+  .muted { color:var(--mute); } .err { color:var(--red); margin-top:8px; }
+  .hint { font-size:12px; color:var(--mute); margin-top:6px; }
+  .filters { display:flex; gap:10px; margin-bottom:14px; align-items:center; flex-wrap:wrap; }
+  .filters select, .filters input { width:auto; }
+  img.prev { max-width:100%; border-radius:8px; border:1px solid var(--line); margin-top:10px; }
+  .hide { display:none; }
+</style>
+</head>
+<body>
+<nav>
+  <h1><span>✂</span> Clipping Studio</h1>
+  <button data-tab="video" class="on">🎬 Video / VOD</button>
+  <button data-tab="live">🔴 Live streams</button>
+  <button data-tab="jobs">⚙️ Jobs <span id="runCount" class="tag running hide"></span></button>
+  <button data-tab="clips">🎞 Clips</button>
+  <button data-tab="facecam">🙂 Facecam</button>
+  <button data-tab="youtube">▶️ YouTube</button>
+  <div class="yt" id="ytSide">YouTube: checking…</div>
+</nav>
+
+<main>
+<!-- VIDEO -->
+<section id="tab-video">
+  <h2>Clip a finished video</h2>
+  <div class="card">
+    <label>Video URL or local file path</label>
+    <input id="v-source" placeholder="https://www.youtube.com/watch?v=...">
+    <label>Time sections (optional, only these parts are downloaded)</label>
+    <div id="v-sections" class="list"></div>
+    <button class="btn sec sm" style="margin-top:8px" onclick="addSection()">+ Add section</button>
+    <div class="hint">Format 1:00:00-1:20:00. Leave empty to clip the whole video. Max clips applies per section.</div>
+    <div class="row">
+      <div><label>Max clips</label><input id="v-max" type="number" value="5" min="1" max="50"></div>
+      <div><label>Output name (optional)</label><input id="v-name" placeholder="auto"></div>
+    </div>
+    <div data-common="v"></div>
+    <div data-upload="v"></div>
+    <div style="margin-top:16px"><button class="btn" onclick="runVideo()">Start clipping</button></div>
+    <div class="err" id="v-err"></div>
+  </div>
+</section>
+
+<!-- LIVE -->
+<section id="tab-live" class="hide">
+  <h2>Watch live streams</h2>
+  <div class="card">
+    <label>Live URLs (YouTube watch / @channel/live, Kick channel)</label>
+    <div id="l-urls" class="list"></div>
+    <button class="btn sec sm" style="margin-top:8px" onclick="addUrl()">+ Add stream</button>
+    <div class="row">
+      <div><label>Instant-clip score</label><input id="l-min" type="number" step="0.1" value="0.8"></div>
+      <div><label>Clips per hour (target)</label><input id="l-ph" type="number" value="8" min="1" max="60"></div>
+      <div><label>Floor (weakest fallback)</label><input id="l-floor" type="number" step="0.1" value="0.3"></div>
+    </div>
+    <div class="hint">Moments at or above the instant score are clipped right away. If 60/N minutes pass with none, the best moment of that stretch is clipped (if it scores above the floor).</div>
+    <div data-common="l"></div>
+    <div data-upload="l"></div>
+    <div style="margin-top:16px"><button class="btn" onclick="runLive()">Start watching</button></div>
+    <div class="err" id="l-err"></div>
+  </div>
+</section>
+
+<!-- JOBS -->
+<section id="tab-jobs" class="hide">
+  <h2>Jobs</h2>
+  <div class="card jobs" id="jobs"><span class="muted">No jobs yet.</span></div>
+</section>
+
+<!-- CLIPS -->
+<section id="tab-clips" class="hide">
+  <h2>Clips</h2>
+  <div class="filters">
+    <select id="c-folder" onchange="renderClips()"><option value="">All folders</option></select>
+    <select id="c-up" onchange="renderClips()">
+      <option value="">Any status</option><option value="not uploaded">Not uploaded</option>
+      <option value="up">Uploaded</option><option value="skipped">Skipped</option></select>
+    <label class="check" style="margin:0">min score <input id="c-min" type="number" step="0.1" value="0" style="width:70px" oninput="renderClips()"></label>
+    <select id="c-sort" onchange="renderClips()"><option value="new">Newest</option><option value="score">Best score</option></select>
+    <button class="btn sec sm" onclick="loadClips()">Refresh</button>
+  </div>
+  <div class="grid" id="clips"></div>
+</section>
+
+<!-- FACECAM -->
+<section id="tab-facecam" class="hide">
+  <h2>Facecam per streamer</h2>
+  <div class="card">
+    <h3>Check a streamer</h3>
+    <label>Any video or live URL of the streamer</label>
+    <input id="f-src" placeholder="https://www.youtube.com/watch?v=...">
+    <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap">
+      <button class="btn" onclick="fcCheck()">Detect + preview</button>
+      <button class="btn sec" onclick="fcSave()">Detect + save as confirmed</button>
+    </div>
+    <label>Or set manually (x,y,w,h in source pixels)</label>
+    <div style="display:flex; gap:8px"><input id="f-rect" placeholder="0,458,388,244">
+      <button class="btn sec" onclick="fcSave(true)">Save</button>
+      <button class="btn sec" onclick="fcSave(false,true)">No webcam</button></div>
+    <div class="hint">Takes 1–3 minutes (downloads 3 short samples). Progress is in Jobs; the preview appears here.</div>
+    <div id="f-out"></div>
+    <div class="err" id="f-err"></div>
+  </div>
+  <div class="card"><h3>Saved</h3><div id="fc-list" class="muted">…</div></div>
+</section>
+
+<!-- YOUTUBE -->
+<section id="tab-youtube" class="hide">
+  <h2>YouTube</h2>
+  <div class="card">
+    <h3>Account</h3>
+    <div id="yt-acc">checking…</div>
+    <div style="margin-top:12px; display:flex; gap:8px">
+      <button class="btn sec" onclick="ytLogin()">Log in / re-login</button>
+      <button class="btn sec" onclick="loadYT(true)">Re-check</button></div>
+    <div class="hint">Login opens a browser window on this Mac. Test-mode logins expire every 7 days.</div>
+  </div>
+  <div class="card">
+    <h3>Upload queue (all clip folders)</h3>
+    <div class="row">
+      <div><label>Privacy</label><select id="q-priv"><option>private</option><option>scheduled</option><option>unlisted</option><option>public</option></select></div>
+      <div><label>Minutes between uploads</label><input id="q-every" type="number" value="90"></div>
+      <div><label>Min score</label><input id="q-min" type="number" step="0.1" value="0.9"></div>
+    </div>
+    <div style="margin-top:12px"><button class="btn" onclick="startQueue()">Start upload queue</button></div>
+    <div class="hint">Uploads the best not-yet-uploaded clips one by one (max 6/day from upload_config.json). Stop it from Jobs.</div>
+    <div class="err" id="q-err"></div>
+  </div>
+</section>
+</main>
+
+<script>
+const TOKEN = "__TOKEN__";
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+async function api(path, body) {
+  const r = await fetch(path, { method: body ? "POST" : "GET",
+    headers: { "X-Clipper-Token": TOKEN, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+const fileUrl = (rel) => "/files/" + rel.split("/").map(encodeURIComponent).join("/") + "?t=" + TOKEN;
+
+// ---- tabs
+document.querySelectorAll("nav button[data-tab]").forEach(b => b.onclick = () => show(b.dataset.tab));
+function show(tab) {
+  document.querySelectorAll("nav button[data-tab]").forEach(b => b.classList.toggle("on", b.dataset.tab === tab));
+  document.querySelectorAll("main > section").forEach(s => s.classList.toggle("hide", s.id !== "tab-" + tab));
+  if (tab === "clips") loadClips();
+  if (tab === "facecam") loadFacecams();
+  if (tab === "youtube") loadYT();
+}
+
+// ---- shared form blocks
+function commonBlock(p) { return `
+  <div class="row">
+    <div><label>Layout</label><select id="${p}-layout">
+      <option value="facecam">facecam (webcam top, game bottom)</option><option value="auto">auto</option>
+      <option value="filler">filler video bottom</option><option value="blur">blurred background</option>
+      <option value="crop">center crop</option></select></div>
+    <div><label>Whisper model</label><select id="${p}-model">
+      <option>base</option><option>small</option><option>tiny</option><option>medium</option></select></div>
+    <div><label>Language</label><select id="${p}-lang"><option value="">auto</option><option value="hi">Hindi</option><option value="en">English</option></select></div>
+    <div><label>Facecam override x,y,w,h</label><input id="${p}-facecam" placeholder="saved / auto"></div>
+  </div>
+  <label class="check"><input type="checkbox" id="${p}-nosticker"> No like & subscribe sticker</label>
+  <label class="check"><input type="checkbox" id="${p}-captions"> Burn in captions</label>`; }
+function uploadBlock(p) { return `
+  <label class="check"><input type="checkbox" id="${p}-upload" onchange="$('#${p}-upbox').classList.toggle('hide', !this.checked)"> Upload to YouTube automatically</label>
+  <div id="${p}-upbox" class="row hide">
+    <div><label>Privacy</label><select id="${p}-priv"><option>private</option><option>scheduled</option><option>unlisted</option><option>public</option></select></div>
+    <div><label>Minutes between uploads</label><input id="${p}-every" type="number" value="0"></div>
+    <div><label>Only clips scoring ≥</label><input id="${p}-upmin" type="number" step="0.1" value="0.9"></div>
+    <div><label>Max per day</label><input id="${p}-mpd" type="number" value="6"></div>
+  </div>`; }
+document.querySelectorAll("[data-common]").forEach(e => e.innerHTML = commonBlock(e.dataset.common));
+document.querySelectorAll("[data-upload]").forEach(e => e.innerHTML = uploadBlock(e.dataset.upload));
+function gather(p) {
+  return { layout: $(`#${p}-layout`).value, model: $(`#${p}-model`).value, lang: $(`#${p}-lang`).value,
+    facecam: $(`#${p}-facecam`).value.trim(), no_sticker: $(`#${p}-nosticker`).checked,
+    captions: $(`#${p}-captions`).checked, upload: $(`#${p}-upload`).checked,
+    privacy: $(`#${p}-priv`).value, every: $(`#${p}-every`).value,
+    upload_min_score: $(`#${p}-upmin`).value, max_per_day: $(`#${p}-mpd`).value };
+}
+function listInput(box, ph) {
+  const d = document.createElement("div"); d.className = "item";
+  d.innerHTML = `<input placeholder="${ph}"><button class="btn sec sm" onclick="this.parentNode.remove()">✕</button>`;
+  $(box).appendChild(d);
+}
+const addSection = () => listInput("#v-sections", "1:00:00-1:20:00");
+const addUrl = () => listInput("#l-urls", "https://www.youtube.com/watch?v=...");
+addUrl();
+const vals = (box) => [...document.querySelectorAll(box + " input")].map(i => i.value.trim()).filter(Boolean);
+
+async function runVideo() {
+  $("#v-err").textContent = "";
+  try {
+    await api("/api/jobs/video", { source: $("#v-source").value, sections: vals("#v-sections"),
+      max_clips: $("#v-max").value, name: $("#v-name").value, ...gather("v") });
+    show("jobs"); loadJobs();
+  } catch (e) { $("#v-err").textContent = e.message; }
+}
+async function runLive() {
+  $("#l-err").textContent = "";
+  if ($("#l-upload").checked && $("#l-priv").value === "public" &&
+      !confirm("Clips will go PUBLIC without review. The scorer can't spot adult/unsafe scenes. Continue?")) return;
+  try {
+    await api("/api/jobs/live", { urls: vals("#l-urls"), min_score: $("#l-min").value,
+      per_hour: $("#l-ph").value, floor: $("#l-floor").value, ...gather("l") });
+    show("jobs"); loadJobs();
+  } catch (e) { $("#l-err").textContent = e.message; }
+}
+
+// ---- jobs
+const open = new Set(); const logs = {};
+const ago = (t) => { const s = Math.round(Date.now()/1000 - t); return s < 60 ? s+"s" : s < 3600 ? Math.round(s/60)+" min" : (s/3600).toFixed(1)+" h"; };
+async function loadJobs() {
+  const { jobs } = await api("/api/state");
+  const running = jobs.filter(j => j.status === "running").length;
+  $("#runCount").textContent = running; $("#runCount").classList.toggle("hide", !running);
+  if (!jobs.length) { $("#jobs").innerHTML = '<span class="muted">No jobs yet.</span>'; return; }
+  $("#jobs").innerHTML = jobs.map(j => `
+    <div class="job" id="job-${j.id}">
+      <div class="t">${esc(j.title)}</div>
+      <div class="meta"><span class="tag ${j.status.split(" ")[0]}">${esc(j.status)}</span>
+        &nbsp;started ${ago(j.started)} ago${j.out ? " · output: " + esc(j.out) : ""}</div>
+      <button class="btn sec sm" onclick="toggleLog('${j.id}')">${open.has(j.id) ? "Hide log" : "Show log"}</button>
+      ${j.status === "running" ? `<button class="btn red sm" onclick="stopJob('${j.id}')">Stop</button>` :
+        `<button class="btn sec sm" onclick="delJob('${j.id}')">Remove</button>`}
+      ${open.has(j.id) ? `<pre class="log" id="log-${j.id}">${esc(logs[j.id]?.text || "")}</pre>` : ""}
+    </div>`).join("");
+  for (const id of open) pollLog(id);
+  facecamResults(jobs);
+}
+function toggleLog(id) { open.has(id) ? open.delete(id) : open.add(id); loadJobs(); }
+async function pollLog(id) {
+  const st = logs[id] ||= { text: "", offset: 0 };
+  const r = await api(`/api/jobs/${id}/log?offset=${st.offset}`);
+  if (r.text) { st.text = (st.text + "\n" + r.text).replace(/\n{2,}/g, "\n").slice(-60000); st.offset = r.offset; }
+  const el = $("#log-" + id);
+  if (el) { const atEnd = el.scrollTop + el.clientHeight >= el.scrollHeight - 20;
+    el.textContent = st.text; if (atEnd) el.scrollTop = el.scrollHeight; }
+}
+async function stopJob(id) { if (confirm("Stop this job?")) { await api(`/api/jobs/${id}/stop`, {}); loadJobs(); } }
+async function delJob(id) { await api(`/api/jobs/${id}/delete`, {}); loadJobs(); }
+
+// ---- clips
+let CLIPS = [];
+async function loadClips() {
+  CLIPS = (await api("/api/clips")).clips;
+  const sel = $("#c-folder"), cur = sel.value;
+  sel.innerHTML = '<option value="">All folders</option>' +
+    [...new Set(CLIPS.map(c => c.folder))].map(f => `<option ${f===cur?"selected":""}>${esc(f)}</option>`).join("");
+  renderClips();
+}
+function renderClips() {
+  const f = $("#c-folder").value, up = $("#c-up").value, min = +$("#c-min").value || 0;
+  let list = CLIPS.filter(c => (!f || c.folder === f) && c.score >= min &&
+    (!up || (up === "up" ? c.url : c.upload === up)));
+  if ($("#c-sort").value === "score") list = [...list].sort((a, b) => b.score - a.score);
+  $("#clips").innerHTML = list.slice(0, 120).map(c => `
+    <div class="clip">
+      <video src="${fileUrl(c.key)}" preload="metadata" controls playsinline></video>
+      <div class="b">
+        <div><span class="s">${c.score.toFixed(2)}</span> <span class="muted">· ${c.duration ?? "?"}s · ${c.size_mb ?? "?"} MB · ${esc(c.layout)}</span></div>
+        <div class="muted" style="word-break:break-all">${esc(c.folder)}</div>
+        <div style="margin-top:4px"><span class="tag ${c.upload}">${esc(c.upload)}</span>
+          ${c.url ? `<a href="${esc(c.url)}" target="_blank">open ↗</a>` : ""}</div>
+        ${!c.url && c.upload !== "skipped" ? `<div class="acts">
+          <button class="btn sm" onclick="upClip('${esc(c.key)}','public')">Upload public</button>
+          <button class="btn sec sm" onclick="upClip('${esc(c.key)}','private')">Private</button>
+          <button class="btn sec sm" onclick="skipClip('${esc(c.key)}')">Skip</button></div>` : ""}
+      </div>
+    </div>`).join("") || '<span class="muted">No clips match.</span>';
+}
+async function upClip(key, privacy) {
+  if (privacy === "public" && !confirm("Upload this clip as PUBLIC?")) return;
+  try { await api("/api/clips/upload", { key, privacy }); alert("Upload started — see Jobs."); }
+  catch (e) { alert(e.message); }
+}
+async function skipClip(key) { await api("/api/clips/skip", { key }); loadClips(); }
+
+// ---- facecam
+let fcJob = null;
+async function fcCheck() { await fcRun("/api/facecam/check", { source: $("#f-src").value }); }
+async function fcSave(manual, none) {
+  const body = { source: $("#f-src").value };
+  if (manual) body.rect = $("#f-rect").value; if (none) body.none = true;
+  await fcRun("/api/facecam/save", body);
+}
+async function fcRun(path, body) {
+  $("#f-err").textContent = "";
+  try { const j = await api(path, body); fcJob = j.id; $("#f-out").innerHTML = '<p class="muted">Working… (see Jobs for progress)</p>'; loadJobs(); }
+  catch (e) { $("#f-err").textContent = e.message; }
+}
+async function facecamResults(jobs) {
+  if (!fcJob) return;
+  const j = jobs.find(x => x.id === fcJob); if (!j || j.status === "running") return;
+  const r = await api(`/api/jobs/${j.id}/log?offset=0`);
+  const lines = r.text.split("\n").filter(l => /channel:|saved|detected:|sample|could not|error/i.test(l));
+  $("#f-out").innerHTML = `<pre class="log">${esc(lines.join("\n"))}</pre>` +
+    (j.preview ? `<img class="prev" src="${fileUrl(j.preview)}&r=${Date.now()}" onerror="this.remove()">` : "");
+  fcJob = null; loadFacecams();
+}
+async function loadFacecams() {
+  const d = await api("/api/facecams");
+  const rows = Object.entries(d).map(([id, e]) => `<div>${e.confirmed ? "✅" : "🟡"} <b>${esc(e.name || id)}</b>
+    <span class="muted">${e.rect && e.rect[2] > 0 ? esc(e.rect.join(",")) : "no webcam"} ${e.confirmed ? "" : "(auto)"}</span></div>`);
+  $("#fc-list").innerHTML = rows.join("") || "None yet.";
+}
+
+// ---- youtube
+async function loadYT(refresh) {
+  const y = await api("/api/youtube" + (refresh ? "?refresh=1" : ""));
+  const t = y.ok ? `✅ ${esc(y.channel)}` : `⚠️ ${esc(y.msg)}`;
+  $("#ytSide").innerHTML = "YouTube: " + t; if ($("#yt-acc")) $("#yt-acc").innerHTML = t;
+}
+async function ytLogin() { await api("/api/youtube/login", {}); alert("A browser window will open for Google login."); setTimeout(() => loadYT(true), 20000); }
+async function startQueue() {
+  $("#q-err").textContent = "";
+  try { await api("/api/uploader", { privacy: $("#q-priv").value, every: $("#q-every").value, min_score: $("#q-min").value }); show("jobs"); loadJobs(); }
+  catch (e) { $("#q-err").textContent = e.message; }
+}
+
+loadJobs(); loadYT();
+setInterval(loadJobs, 3000);
+</script>
+</body>
+</html>

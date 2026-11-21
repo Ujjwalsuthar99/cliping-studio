@@ -1,0 +1,42 @@
+# ---- secrets: never commit (these can upload to your channel) ----
+client_secret*.json
+token.json
+*.token.json
+.env
+.env.*
+
+# ---- personal state / history ----
+uploads.json
+facecams.json
+jobs.json
+facecam_preview.jpg
+
+# ---- generated media and logs (large) ----
+output/
+live_output/
+logs/
+previews/
+_work/
+_segments/
+*.mp4
+*.ts
+*.wav
+*.mkv
+*.webm
+assets/filler/*
+!assets/filler/.gitkeep
+
+# ---- python ----
+.venv*/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+
+# ---- OS / editors ----
+.DS_Store
+.idea/
+.vscode/
+
+# ---- not part of this project ----
+44848StaticAudience/
